@@ -46,8 +46,7 @@ class _AddTaskPageState extends State<AddTaskPage> with TickerProviderStateMixin
       curve: Curves.easeOutCubic,
     ));
     _animationController.forward();
-    
-    // Initialize category listening
+
     context.read<CategoryCubit>().listenCategories();
   }
 
@@ -199,7 +198,6 @@ class _AddTaskPageState extends State<AddTaskPage> with TickerProviderStateMixin
               position: _slideAnimation,
               child: Column(
                 children: [
-                  // Custom App Bar
                   Container(
                     padding: const EdgeInsets.fromLTRB(24, 20, 24, 30),
                     decoration: const BoxDecoration(
@@ -239,7 +237,7 @@ class _AddTaskPageState extends State<AddTaskPage> with TickerProviderStateMixin
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                'Hadi yeni bir görev oluşturalim',
+                                'Hadi yeni bir görev oluşturalım 🎯',
                                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                                   color: const Color(0xFF666666),
                                 ),
@@ -610,7 +608,7 @@ class _AddTaskPageState extends State<AddTaskPage> with TickerProviderStateMixin
                       ),
                     ),
                     
-                    // New category input field (shown when adding new category)
+                    // New category input field
                     if (isAddingNewCategory) ...[
                       const SizedBox(height: 12),
                       TextField(
@@ -844,7 +842,6 @@ class _AddTaskPageState extends State<AddTaskPage> with TickerProviderStateMixin
       return;
     }
 
-    // Use the newly created category if we're adding one
     String categoryToSave = isAddingNewCategory && newCategoryCtrl.text.trim().isNotEmpty 
         ? newCategoryCtrl.text.trim() 
         : selectedCategory;

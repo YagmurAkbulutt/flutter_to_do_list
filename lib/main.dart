@@ -10,17 +10,16 @@ import 'package:to_do_list/utils/notification_service.dart';
 import 'package:to_do_list/utils/safe_date_format.dart';
 import 'package:flutter/services.dart';
 import 'package:to_do_list/firebase_options.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
-  
-  // Initialize safe date formatting
+
   await SafeDateFormat.initialize();
-  
-  // Initialize notification service
+
   await NotificationService.init();
 
   runApp(const MyApp());
@@ -39,8 +38,17 @@ class MyApp extends StatelessWidget {
         BlocProvider(create: (context) => CategoryCubit()),
       ],
       child: MaterialApp(
-        title: 'Flutter Demo',
+        title: 'To Do List',
         debugShowCheckedModeBanner: false,
+        localizationsDelegates: const [
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        supportedLocales: const [
+          Locale('tr', 'TR'),
+        ],
+        locale: const Locale('tr', 'TR'),
         theme: ThemeData(
           useMaterial3: true,
           fontFamily: 'SF Pro Display',

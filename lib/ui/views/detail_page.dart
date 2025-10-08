@@ -27,8 +27,7 @@ class _DetailPageState extends State<DetailPage> {
     descCtrl = TextEditingController(text: widget.task.description ?? '');
     selectedDateTime = widget.task.dueDate;
     selectedCategory = widget.task.category;
-    
-    // Initialize category listening
+
     context.read<CategoryCubit>().listenCategories();
   }
 

@@ -4,7 +4,6 @@ class CategoryRepo {
   final CollectionReference categoriesRef =
       FirebaseFirestore.instance.collection('categories');
 
-  // Default categories
   final List<String> defaultCategories = ['İş', 'Ev', 'Kişisel'];
 
   Future<void> addCategory(String categoryName) async {
@@ -19,8 +18,7 @@ class CategoryRepo {
       List<String> customCategories = snapshot.docs.map((doc) {
         return doc.data() as Map<String, dynamic>;
       }).map((data) => data['name'] as String).toList();
-      
-      // Combine default categories with custom ones
+
       List<String> allCategories = [...defaultCategories];
       for (String category in customCategories) {
         if (!allCategories.contains(category)) {
@@ -32,7 +30,6 @@ class CategoryRepo {
   }
 
   Future<void> deleteCategory(String categoryName) async {
-    // Don't allow deletion of default categories
     if (defaultCategories.contains(categoryName)) {
       return;
     }

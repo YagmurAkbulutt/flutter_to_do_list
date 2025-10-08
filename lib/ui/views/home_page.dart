@@ -42,8 +42,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       curve: Curves.easeOutCubic,
     ));
     _animationController.forward();
-    
-    // Initialize category listening
+
     context.read<CategoryCubit>().listenCategories();
   }
 
@@ -168,7 +167,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
               Navigator.pop(context);
               await context.read<CategoryCubit>().deleteCategory(category);
               if (mounted) {
-                // If the deleted category was selected, switch to "Tümü"
                 if (selectedFilter == category) {
                   setState(() {
                     selectedFilter = "Tümü";
@@ -313,7 +311,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Modern Header Section
                   Container(
                     padding: const EdgeInsets.fromLTRB(24, 20, 24, 30),
                     decoration: const BoxDecoration(
@@ -347,22 +344,10 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                                 ),
                               ],
                             ),
-                            Container(
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF6B4EFF).withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                              child: const Icon(
-                                Icons.notifications_none_rounded,
-                                color: Color(0xFF6B4EFF),
-                                size: 24,
-                              ),
-                            ),
                           ],
                         ),
                         const SizedBox(height: 24),
-                        // Category Filter Chips
+                        // Category Filter
                         BlocBuilder<CategoryCubit, List<String>>(
                           builder: (context, categories) {
                             List<String> allFilters = ["Tümü", ...categories];
@@ -474,7 +459,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                           return _buildEmptyCategory();
                         }
 
-                        // Separate completed and pending tasks
                         final pendingTasks = filteredTasks.where((t) => !t.isDone).toList();
                         final completedTasks = filteredTasks.where((t) => t.isDone).toList();
 
@@ -564,7 +548,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                                   ),
                                 ),
                               ],
-                              
                               const SizedBox(height: 100), // Add bottom padding for FAB
                             ],
                           ),

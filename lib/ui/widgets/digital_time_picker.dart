@@ -43,7 +43,9 @@ class _DigitalTimePickerState extends State<DigitalTimePicker> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 200,
+      constraints: const BoxConstraints(
+    maxHeight: 280,
+  ),
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Colors.white,
@@ -101,7 +103,7 @@ class _DigitalTimePickerState extends State<DigitalTimePicker> {
                       ),
                     );
                   },
-                  itemCount: 72, // 24 * 3 for smooth scrolling
+                  itemCount: 72,
                 ),
               ),
               
@@ -151,7 +153,7 @@ class _DigitalTimePickerState extends State<DigitalTimePicker> {
                       ),
                     );
                   },
-                  itemCount: 180, // 60 * 3 for smooth scrolling
+                  itemCount: 180,
                 ),
               ),
             ],

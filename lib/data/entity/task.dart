@@ -4,7 +4,7 @@ class Task {
   String? description;
   bool isDone;
   DateTime? dueDate;
-  String category; // ✅ yeni alan eklendi
+  String category;
 
   Task({
     this.id,
@@ -12,7 +12,7 @@ class Task {
     this.description,
     this.isDone = false,
     this.dueDate,
-    this.category = "Kişisel", // varsayılan değer
+    this.category = "Kişisel",
   });
 
   Map<String, dynamic> toMap() {
