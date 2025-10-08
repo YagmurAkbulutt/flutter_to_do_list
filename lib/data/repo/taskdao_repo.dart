@@ -5,8 +5,9 @@ class TaskDaoRepo {
   final CollectionReference tasksRef =
       FirebaseFirestore.instance.collection('tasks');
 
-  Future<void> addTask(Task task) async {
-    await tasksRef.add(task.toMap());
+  Future<String?> addTask(Task task) async {
+    final docRef = await tasksRef.add(task.toMap());
+    return docRef.id;
   }
 
   Stream<List<Task>> getAllTasksStream() {

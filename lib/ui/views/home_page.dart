@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:intl/intl.dart';
 import '../../data/entity/task.dart';
 import '../cubit/home_cubit.dart';
+import '../cubit/category_cubit.dart';
 import 'add_task_page.dart';
 import 'detail_page.dart';
+import '../../utils/safe_date_format.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -41,6 +42,9 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       curve: Curves.easeOutCubic,
     ));
     _animationController.forward();
+    
+    // Initialize category listening
+    context.read<CategoryCubit>().listenCategories();
   }
 
   @override
@@ -73,6 +77,226 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       default:
         return Icons.label_outline_rounded;
     }
+  }
+
+  void _showAddCategoryDialog() {
+    final TextEditingController categoryController = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        title: const Text(
+          'Yeni Kategori Ekle',
+          style: TextStyle(
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        content: TextField(
+          controller: categoryController,
+          decoration: InputDecoration(
+            hintText: 'Kategori adı girin',
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+          autofocus: true,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('İptal'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              if (categoryController.text.trim().isNotEmpty) {
+                await context.read<CategoryCubit>().addCategory(categoryController.text.trim());
+                if (mounted) {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('"${categoryController.text.trim()}" kategorisi eklendi!'),
+                      backgroundColor: const Color(0xFF4ECDC4),
+                      behavior: SnackBarBehavior.floating,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  );
+                }
+              }
+            },
+            child: const Text('Ekle'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showDeleteCategoryDialog(String category) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        title: const Text(
+          'Kategoriyi Sil',
+          style: TextStyle(
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        content: Text(
+          '"$category" kategorisini silmek istediğinize emin misiniz?\n\nBu işlem geri alınamaz.',
+          style: const TextStyle(
+            fontSize: 16,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text(
+              'İptal',
+              style: TextStyle(
+                color: Color(0xFF666666),
+              ),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              await context.read<CategoryCubit>().deleteCategory(category);
+              if (mounted) {
+                // If the deleted category was selected, switch to "Tümü"
+                if (selectedFilter == category) {
+                  setState(() {
+                    selectedFilter = "Tümü";
+                  });
+                }
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('"$category" kategorisi silindi!'),
+                    backgroundColor: const Color(0xFFFF6B6B),
+                    behavior: SnackBarBehavior.floating,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                );
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFFF6B6B),
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Evet'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showCategoryManagementDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        title: const Text(
+          'Kategori Yönetimi',
+          style: TextStyle(
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: BlocBuilder<CategoryCubit, List<String>>(
+            builder: (context, categories) {
+              final customCategories = categories.where((cat) => 
+                !['İş', 'Ev', 'Kişisel'].contains(cat)).toList();
+              
+              if (customCategories.isEmpty) {
+                return const Padding(
+                  padding: EdgeInsets.all(20),
+                  child: Text(
+                    'Henüz özel kategori yok.\nYeni kategori ekleyebilirsiniz.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Color(0xFF666666)),
+                  ),
+                );
+              }
+              
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    'Özel kategorilerinizi silebilirsiniz:',
+                    style: TextStyle(color: Color(0xFF666666)),
+                  ),
+                  const SizedBox(height: 16),
+                  ...customCategories.map((category) => ListTile(
+                    leading: Icon(
+                      _getCategoryIcon(category),
+                      color: _getCategoryColor(category),
+                    ),
+                    title: Text(category),
+                    trailing: IconButton(
+                      icon: const Icon(
+                        Icons.delete_outline,
+                        color: Color(0xFFFF6B6B),
+                      ),
+                      onPressed: () async {
+                        await context.read<CategoryCubit>().deleteCategory(category);
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('"$category" kategorisi silindi!'),
+                              backgroundColor: const Color(0xFFFF6B6B),
+                              behavior: SnackBarBehavior.floating,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                          );
+                        }
+                      },
+                    ),
+                  )),
+                ],
+              );
+            },
+          ),
+        ),
+        actions: [
+          Row(
+            children: [
+              Expanded(
+                child: TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Kapat'),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    _showAddCategoryDialog();
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF6B4EFF),
+                    foregroundColor: Colors.white,
+                  ),
+                  child: const Text('Yeni Ekle'),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -139,17 +363,96 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                         ),
                         const SizedBox(height: 24),
                         // Category Filter Chips
-                        SingleChildScrollView(
-                          scrollDirection: Axis.horizontal,
-                          child: Row(
-                            children: [
-                              for (var category in ["Tümü", "İş", "Ev", "Kişisel"])
-                                Padding(
-                                  padding: const EdgeInsets.only(right: 12),
-                                  child: _buildCategoryChip(category),
-                                ),
-                            ],
-                          ),
+                        BlocBuilder<CategoryCubit, List<String>>(
+                          builder: (context, categories) {
+                            List<String> allFilters = ["Tümü", ...categories];
+                            return SingleChildScrollView(
+                              scrollDirection: Axis.horizontal,
+                              child: Row(
+                                children: [
+                                  for (var category in allFilters)
+                                    Padding(
+                                      padding: const EdgeInsets.only(right: 12),
+                                      child: _buildCategoryChip(category),
+                                    ),
+                                  // Add Category Button
+                                  Padding(
+                                    padding: const EdgeInsets.only(right: 12),
+                                    child: GestureDetector(
+                                      onTap: _showAddCategoryDialog,
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                        decoration: BoxDecoration(
+                                          color: Colors.transparent,
+                                          borderRadius: BorderRadius.circular(20),
+                                          border: Border.all(
+                                            color: const Color(0xFF6B4EFF),
+                                            width: 1.5,
+                                          ),
+                                        ),
+                                        child: const Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Icon(
+                                              Icons.add_rounded,
+                                              size: 16,
+                                              color: Color(0xFF6B4EFF),
+                                            ),
+                                            SizedBox(width: 6),
+                                            Text(
+                                              'Kategori Ekle',
+                                              style: TextStyle(
+                                                color: Color(0xFF6B4EFF),
+                                                fontWeight: FontWeight.w600,
+                                                fontSize: 14,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  // Manage Categories Button
+                                  Padding(
+                                    padding: const EdgeInsets.only(right: 12),
+                                    child: GestureDetector(
+                                      onTap: _showCategoryManagementDialog,
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                        decoration: BoxDecoration(
+                                          color: Colors.transparent,
+                                          borderRadius: BorderRadius.circular(20),
+                                          border: Border.all(
+                                            color: const Color(0xFFFF6B6B),
+                                            width: 1.5,
+                                          ),
+                                        ),
+                                        child: const Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Icon(
+                                              Icons.settings_rounded,
+                                              size: 16,
+                                              color: Color(0xFFFF6B6B),
+                                            ),
+                                            SizedBox(width: 6),
+                                            Text(
+                                              'Yönet',
+                                              style: TextStyle(
+                                                color: Color(0xFFFF6B6B),
+                                                fontWeight: FontWeight.w600,
+                                                fontSize: 14,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
                         ),
                       ],
                     ),
@@ -171,48 +474,100 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                           return _buildEmptyCategory();
                         }
 
-                        return Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Padding(
-                              padding: const EdgeInsets.fromLTRB(24, 20, 24, 16),
-                              child: Row(
-                                children: [
-                                  Text(
-                                    'Görevlerin',
-                                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFF6B4EFF).withOpacity(0.1),
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    child: Text(
-                                      '${filteredTasks.length}',
-                                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                        color: const Color(0xFF6B4EFF),
-                                        fontWeight: FontWeight.w600,
+                        // Separate completed and pending tasks
+                        final pendingTasks = filteredTasks.where((t) => !t.isDone).toList();
+                        final completedTasks = filteredTasks.where((t) => t.isDone).toList();
+
+                        return SingleChildScrollView(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // Pending Tasks Section
+                              if (pendingTasks.isNotEmpty) ...[
+                                Padding(
+                                  padding: const EdgeInsets.fromLTRB(24, 20, 24, 16),
+                                  child: Row(
+                                    children: [
+                                      Text(
+                                        'Görevlerin',
+                                        style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                                          fontWeight: FontWeight.w600,
+                                        ),
                                       ),
-                                    ),
+                                      const SizedBox(width: 8),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFF6B4EFF).withOpacity(0.1),
+                                          borderRadius: BorderRadius.circular(12),
+                                        ),
+                                        child: Text(
+                                          '${pendingTasks.length}',
+                                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                            color: const Color(0xFF6B4EFF),
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
                                   ),
-                                ],
-                              ),
-                            ),
-                            Expanded(
-                              child: ListView.builder(
-                                padding: const EdgeInsets.symmetric(horizontal: 24),
-                                itemCount: filteredTasks.length,
-                                itemBuilder: (context, index) {
-                                  final task = filteredTasks[index];
-                                  return _buildTaskCard(task, index);
-                                },
-                              ),
-                            ),
-                          ],
+                                ),
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                                  child: Column(
+                                    children: [
+                                      for (int index = 0; index < pendingTasks.length; index++)
+                                        _buildTaskCard(pendingTasks[index], index),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                              
+                              // Completed Tasks Section
+                              if (completedTasks.isNotEmpty) ...[
+                                Padding(
+                                  padding: const EdgeInsets.fromLTRB(24, 30, 24, 16),
+                                  child: Row(
+                                    children: [
+                                      Text(
+                                        'Tamamlanan Görevler',
+                                        style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                                          fontWeight: FontWeight.w600,
+                                          color: const Color(0xFF4ECDC4),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFF4ECDC4).withOpacity(0.1),
+                                          borderRadius: BorderRadius.circular(12),
+                                        ),
+                                        child: Text(
+                                          '${completedTasks.length}',
+                                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                            color: const Color(0xFF4ECDC4),
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                                  child: Column(
+                                    children: [
+                                      for (int index = 0; index < completedTasks.length; index++)
+                                        _buildTaskCard(completedTasks[index], index),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                              
+                              const SizedBox(height: 100), // Add bottom padding for FAB
+                            ],
+                          ),
                         );
                       },
                     ),
@@ -230,6 +585,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   Widget _buildCategoryChip(String category) {
     final isSelected = selectedFilter == category;
     final color = category == "Tümü" ? const Color(0xFF6B4EFF) : _getCategoryColor(category);
+    final canDelete = category != "Tümü" && !['İş', 'Ev', 'Kişisel'].contains(category);
     
     return GestureDetector(
       onTap: () {
@@ -239,7 +595,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       },
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
           color: isSelected ? color : Colors.transparent,
           borderRadius: BorderRadius.circular(20),
@@ -254,19 +610,36 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
             if (category != "Tümü") ...[
               Icon(
                 _getCategoryIcon(category),
-                size: 16,
+                size: 14,
                 color: isSelected ? Colors.white : color,
               ),
-              const SizedBox(width: 6),
+              const SizedBox(width: 4),
             ],
-            Text(
-              category,
-              style: TextStyle(
-                color: isSelected ? Colors.white : color,
-                fontWeight: FontWeight.w600,
-                fontSize: 14,
+            Flexible(
+              child: Text(
+                category,
+                style: TextStyle(
+                  color: isSelected ? Colors.white : color,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 13,
+                ),
+                overflow: TextOverflow.ellipsis,
               ),
             ),
+            if (canDelete) ...[
+              const SizedBox(width: 4),
+              GestureDetector(
+                onTap: () => _showDeleteCategoryDialog(category),
+                child: Container(
+                  padding: const EdgeInsets.all(2),
+                  child: Icon(
+                    Icons.close,
+                    size: 14,
+                    color: isSelected ? Colors.white : const Color(0xFFFF6B6B),
+                  ),
+                ),
+              ),
+            ],
           ],
         ),
       ),
@@ -376,6 +749,36 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                         ),
                       ),
                       GestureDetector(
+                        onTap: () => Navigator.push(
+                          context,
+                          PageRouteBuilder(
+                            pageBuilder: (context, animation, secondaryAnimation) => DetailPage(task: task),
+                            transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                              return SlideTransition(
+                                position: Tween<Offset>(
+                                  begin: const Offset(1.0, 0.0),
+                                  end: Offset.zero,
+                                ).animate(animation),
+                                child: child,
+                              );
+                            },
+                          ),
+                        ),
+                        child: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF6B4EFF).withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Icon(
+                            Icons.edit_outlined,
+                            color: Color(0xFF6B4EFF),
+                            size: 20,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      GestureDetector(
                         onTap: () => context.read<HomeCubit>().deleteTask(task.id!),
                         child: Container(
                           padding: const EdgeInsets.all(8),
@@ -425,20 +828,51 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                       if (task.dueDate != null)
                         Row(
                           children: [
+                            // Overdue warning icon
+                            if (SafeDateFormat.isOverdue(task.dueDate!) && !task.isDone) ...[
+                              Container(
+                                padding: const EdgeInsets.all(4),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFFF6B6B).withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: const Icon(
+                                  Icons.warning_rounded,
+                                  size: 14,
+                                  color: Color(0xFFFF6B6B),
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                            ],
                             Icon(
                               Icons.schedule_rounded,
                               size: 14,
-                              color: const Color(0xFF999999),
+                              color: SafeDateFormat.isOverdue(task.dueDate!) && !task.isDone 
+                                  ? const Color(0xFFFF6B6B)
+                                  : const Color(0xFF999999),
                             ),
                             const SizedBox(width: 4),
                             Text(
-                              DateFormat('dd MMM, HH:mm').format(task.dueDate!),
-                              style: const TextStyle(
-                                color: Color(0xFF999999),
+                              SafeDateFormat.formatTurkishDateTime(task.dueDate!),
+                              style: TextStyle(
+                                color: SafeDateFormat.isOverdue(task.dueDate!) && !task.isDone 
+                                    ? const Color(0xFFFF6B6B)
+                                    : const Color(0xFF999999),
                                 fontSize: 12,
                                 fontWeight: FontWeight.w500,
                               ),
                             ),
+                            if (SafeDateFormat.isOverdue(task.dueDate!) && !task.isDone) ...[
+                              const SizedBox(width: 6),
+                              Text(
+                                '(${SafeDateFormat.getRelativeTime(task.dueDate!)})',
+                                style: const TextStyle(
+                                  color: Color(0xFFFF6B6B),
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
                           ],
                         ),
                     ],

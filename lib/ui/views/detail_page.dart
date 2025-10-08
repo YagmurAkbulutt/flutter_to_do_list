@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../data/entity/task.dart';
 import '../cubit/detail_cubit.dart';
-import 'package:intl/intl.dart';
+import '../cubit/category_cubit.dart';
+import '../widgets/digital_time_picker.dart';
+import '../../utils/safe_date_format.dart';
 
 class DetailPage extends StatefulWidget {
   final Task task;
@@ -25,6 +27,9 @@ class _DetailPageState extends State<DetailPage> {
     descCtrl = TextEditingController(text: widget.task.description ?? '');
     selectedDateTime = widget.task.dueDate;
     selectedCategory = widget.task.category;
+    
+    // Initialize category listening
+    context.read<CategoryCubit>().listenCategories();
   }
 
   @override
@@ -44,22 +49,84 @@ class _DetailPageState extends State<DetailPage> {
 
     if (date == null) return;
 
-    final time = await showTimePicker(
-      context: context,
-      initialTime: TimeOfDay.fromDateTime(selectedDateTime ?? DateTime.now()),
-    );
-
-    if (time == null) return;
-
-    final fullDateTime = DateTime(
-      date.year,
-      date.month,
-      date.day,
-      time.hour,
-      time.minute,
-    );
-
-    setState(() => selectedDateTime = fullDateTime);
+    // Show custom digital time picker
+    if (mounted) {
+      showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder: (context) {
+          TimeOfDay selectedTime = TimeOfDay.fromDateTime(selectedDateTime ?? DateTime.now());
+          return StatefulBuilder(
+            builder: (context, setModalState) {
+              return Container(
+                padding: const EdgeInsets.all(20),
+                decoration: const BoxDecoration(
+                  color: Color(0xFFFAFAFA),
+                  borderRadius: BorderRadius.only(
+                    topLeft: Radius.circular(24),
+                    topRight: Radius.circular(24),
+                  ),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade300,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    DigitalTimePicker(
+                      initialTime: TimeOfDay.fromDateTime(selectedDateTime ?? DateTime.now()),
+                      onTimeChanged: (time) {
+                        selectedTime = time;
+                      },
+                    ),
+                    const SizedBox(height: 20),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextButton(
+                            onPressed: () => Navigator.pop(context),
+                            child: const Text('İptal'),
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: () {
+                              final fullDateTime = DateTime(
+                                date.year,
+                                date.month,
+                                date.day,
+                                selectedTime.hour,
+                                selectedTime.minute,
+                              );
+                              setState(() => selectedDateTime = fullDateTime);
+                              Navigator.pop(context);
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF6B4EFF),
+                              foregroundColor: Colors.white,
+                            ),
+                            child: const Text('Tamam'),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+                  ],
+                ),
+              );
+            },
+          );
+        },
+      );
+    }
   }
 
   @override
@@ -159,8 +226,8 @@ class _DetailPageState extends State<DetailPage> {
                     ),
                   ],
                 ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
                       'Kategori:',
@@ -169,19 +236,30 @@ class _DetailPageState extends State<DetailPage> {
                         fontWeight: FontWeight.w600,
                       ),
                     ),
-                    DropdownButton<String>(
-                      value: selectedCategory,
-                      items: const [
-                        DropdownMenuItem(value: "İş", child: Text("İş")),
-                        DropdownMenuItem(value: "Ev", child: Text("Ev")),
-                        DropdownMenuItem(value: "Kişisel", child: Text("Kişisel")),
-                      ],
-                      onChanged: (value) {
-                        if (value != null) {
-                          setState(() {
-                            selectedCategory = value;
-                          });
+                    const SizedBox(height: 12),
+                    BlocBuilder<CategoryCubit, List<String>>(
+                      builder: (context, categories) {
+                        if (categories.isEmpty) {
+                          return const Text('Kategoriler yüklüyor...');
                         }
+                        return DropdownButton<String>(
+                          value: categories.contains(selectedCategory) ? selectedCategory : categories.first,
+                          isExpanded: true,
+                          underline: Container(),
+                          items: categories.map((category) {
+                            return DropdownMenuItem(
+                              value: category,
+                              child: Text(category),
+                            );
+                          }).toList(),
+                          onChanged: (value) {
+                            if (value != null) {
+                              setState(() {
+                                selectedCategory = value;
+                              });
+                            }
+                          },
+                        );
                       },
                     ),
                   ],
@@ -225,7 +303,7 @@ class _DetailPageState extends State<DetailPage> {
                         child: Text(
                           selectedDateTime == null
                               ? 'Tarih ve saat seçin'
-                              : DateFormat('dd MMM yyyy, HH:mm').format(selectedDateTime!),
+                              : SafeDateFormat.formatTurkishDateTime(selectedDateTime!),
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w500,

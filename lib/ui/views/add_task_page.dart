@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:intl/intl.dart';
 import 'package:to_do_list/ui/views/home_page.dart';
 import '../cubit/add_task_cubit.dart';
+import '../cubit/category_cubit.dart';
+import '../widgets/digital_time_picker.dart';
+import '../../utils/safe_date_format.dart';
 
 class AddTaskPage extends StatefulWidget {
   const AddTaskPage({super.key});
@@ -14,8 +16,10 @@ class AddTaskPage extends StatefulWidget {
 class _AddTaskPageState extends State<AddTaskPage> with TickerProviderStateMixin {
   final titleCtrl = TextEditingController();
   final descCtrl = TextEditingController();
+  final newCategoryCtrl = TextEditingController();
   DateTime? selectedDateTime;
   String selectedCategory = "Kişisel";
+  bool isAddingNewCategory = false;
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
@@ -42,6 +46,9 @@ class _AddTaskPageState extends State<AddTaskPage> with TickerProviderStateMixin
       curve: Curves.easeOutCubic,
     ));
     _animationController.forward();
+    
+    // Initialize category listening
+    context.read<CategoryCubit>().listenCategories();
   }
 
   @override
@@ -49,6 +56,7 @@ class _AddTaskPageState extends State<AddTaskPage> with TickerProviderStateMixin
     _animationController.dispose();
     titleCtrl.dispose();
     descCtrl.dispose();
+    newCategoryCtrl.dispose();
     super.dispose();
   }
 
@@ -98,32 +106,84 @@ class _AddTaskPageState extends State<AddTaskPage> with TickerProviderStateMixin
 
     if (date == null) return;
 
-    final time = await showTimePicker(
-      context: context,
-      initialTime: TimeOfDay.now(),
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: Theme.of(context).colorScheme.copyWith(
-              primary: const Color(0xFF6B4EFF),
-            ),
-          ),
-          child: child!,
-        );
-      },
-    );
-
-    if (time == null) return;
-
-    final fullDateTime = DateTime(
-      date.year,
-      date.month,
-      date.day,
-      time.hour,
-      time.minute,
-    );
-
-    setState(() => selectedDateTime = fullDateTime);
+    // Show custom digital time picker
+    if (mounted) {
+      showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder: (context) {
+          TimeOfDay selectedTime = TimeOfDay.now();
+          return StatefulBuilder(
+            builder: (context, setModalState) {
+              return Container(
+                padding: const EdgeInsets.all(20),
+                decoration: const BoxDecoration(
+                  color: Color(0xFFFAFAFA),
+                  borderRadius: BorderRadius.only(
+                    topLeft: Radius.circular(24),
+                    topRight: Radius.circular(24),
+                  ),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade300,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    DigitalTimePicker(
+                      initialTime: TimeOfDay.now(),
+                      onTimeChanged: (time) {
+                        selectedTime = time;
+                      },
+                    ),
+                    const SizedBox(height: 20),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextButton(
+                            onPressed: () => Navigator.pop(context),
+                            child: const Text('İptal'),
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: () {
+                              final fullDateTime = DateTime(
+                                date.year,
+                                date.month,
+                                date.day,
+                                selectedTime.hour,
+                                selectedTime.minute,
+                              );
+                              setState(() => selectedDateTime = fullDateTime);
+                              Navigator.pop(context);
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF6B4EFF),
+                              foregroundColor: Colors.white,
+                            ),
+                            child: const Text('Tamam'),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+                  ],
+                ),
+              );
+            },
+          );
+        },
+      );
+    }
   }
 
   @override
@@ -392,54 +452,270 @@ class _AddTaskPageState extends State<AddTaskPage> with TickerProviderStateMixin
               ),
             ],
           ),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-            child: Row(
-              children: [
-                for (var category in ["İş", "Ev", "Kişisel"])
-                  Expanded(
-                    child: GestureDetector(
+          child: BlocBuilder<CategoryCubit, List<String>>(
+            builder: (context, categories) {
+              if (categories.isEmpty) {
+                return const Padding(
+                  padding: EdgeInsets.all(20),
+                  child: Text('Kategoriler yüklüyor...'),
+                );
+              }
+              
+              return Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                child: Column(
+                  children: [
+                    // Existing categories
+                    categories.length <= 3
+                        ? Row(
+                            children: [
+                              for (var category in categories)
+                                Expanded(
+                                  child: GestureDetector(
+                                    onTap: () {
+                                      setState(() {
+                                        selectedCategory = category;
+                                        isAddingNewCategory = false;
+                                      });
+                                    },
+                                    child: Container(
+                                      margin: const EdgeInsets.symmetric(horizontal: 4),
+                                      padding: const EdgeInsets.symmetric(vertical: 12),
+                                      decoration: BoxDecoration(
+                                        color: selectedCategory == category && !isAddingNewCategory
+                                            ? _getCategoryColor(category)
+                                            : _getCategoryColor(category).withOpacity(0.1),
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      child: Column(
+                                        children: [
+                                          Icon(
+                                            _getCategoryIcon(category),
+                                            size: 20,
+                                            color: selectedCategory == category && !isAddingNewCategory
+                                                ? Colors.white
+                                                : _getCategoryColor(category),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            category,
+                                            style: TextStyle(
+                                              color: selectedCategory == category && !isAddingNewCategory
+                                                  ? Colors.white
+                                                  : _getCategoryColor(category),
+                                              fontWeight: FontWeight.w600,
+                                              fontSize: 12,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          )
+                        : Column(
+                            children: [
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 8,
+                                children: [
+                                  for (var category in categories)
+                                    GestureDetector(
+                                      onTap: () {
+                                        setState(() {
+                                          selectedCategory = category;
+                                          isAddingNewCategory = false;
+                                        });
+                                      },
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                        decoration: BoxDecoration(
+                                          color: selectedCategory == category && !isAddingNewCategory
+                                              ? _getCategoryColor(category)
+                                              : _getCategoryColor(category).withOpacity(0.1),
+                                          borderRadius: BorderRadius.circular(20),
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Icon(
+                                              _getCategoryIcon(category),
+                                              size: 14,
+                                              color: selectedCategory == category && !isAddingNewCategory
+                                                  ? Colors.white
+                                                  : _getCategoryColor(category),
+                                            ),
+                                            const SizedBox(width: 6),
+                                            Text(
+                                              category,
+                                              style: TextStyle(
+                                                color: selectedCategory == category && !isAddingNewCategory
+                                                    ? Colors.white
+                                                    : _getCategoryColor(category),
+                                                fontWeight: FontWeight.w600,
+                                                fontSize: 12,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ],
+                          ),
+                    
+                    const SizedBox(height: 12),
+                    
+                    // Add new category button
+                    GestureDetector(
                       onTap: () {
                         setState(() {
-                          selectedCategory = category;
+                          isAddingNewCategory = true;
                         });
                       },
                       child: Container(
-                        margin: const EdgeInsets.symmetric(horizontal: 4),
+                        width: double.infinity,
                         padding: const EdgeInsets.symmetric(vertical: 12),
                         decoration: BoxDecoration(
-                          color: selectedCategory == category
-                              ? _getCategoryColor(category)
-                              : _getCategoryColor(category).withOpacity(0.1),
+                          color: isAddingNewCategory 
+                              ? const Color(0xFF6B4EFF).withOpacity(0.1)
+                              : Colors.transparent,
                           borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: const Color(0xFF6B4EFF),
+                            width: 1.5,
+                          ),
                         ),
-                        child: Column(
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Icon(
-                              _getCategoryIcon(category),
-                              size: 20,
-                              color: selectedCategory == category
-                                  ? Colors.white
-                                  : _getCategoryColor(category),
+                              Icons.add_rounded,
+                              size: 16,
+                              color: const Color(0xFF6B4EFF),
                             ),
-                            const SizedBox(height: 4),
+                            const SizedBox(width: 6),
                             Text(
-                              category,
+                              'Yeni Kategori Ekle',
                               style: TextStyle(
-                                color: selectedCategory == category
-                                    ? Colors.white
-                                    : _getCategoryColor(category),
+                                color: const Color(0xFF6B4EFF),
                                 fontWeight: FontWeight.w600,
-                                fontSize: 12,
+                                fontSize: 14,
                               ),
                             ),
                           ],
                         ),
                       ),
                     ),
-                  ),
-              ],
-            ),
+                    
+                    // New category input field (shown when adding new category)
+                    if (isAddingNewCategory) ...[
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: newCategoryCtrl,
+                        autofocus: true,
+                        style: Theme.of(context).textTheme.bodyLarge,
+                        decoration: InputDecoration(
+                          hintText: 'Kategori adı girin',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(
+                              color: const Color(0xFF6B4EFF),
+                              width: 1.5,
+                            ),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(
+                              color: const Color(0xFF6B4EFF),
+                              width: 2,
+                            ),
+                          ),
+                          filled: true,
+                          fillColor: Colors.white,
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          hintStyle: TextStyle(
+                            color: const Color(0xFF999999),
+                            fontSize: 14,
+                          ),
+                          suffixIcon: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                onPressed: () {
+                                  setState(() {
+                                    isAddingNewCategory = false;
+                                    newCategoryCtrl.clear();
+                                  });
+                                },
+                                icon: const Icon(
+                                  Icons.close,
+                                  color: Color(0xFFFF6B6B),
+                                  size: 20,
+                                ),
+                              ),
+                              IconButton(
+                                onPressed: () async {
+                                  if (newCategoryCtrl.text.trim().isNotEmpty) {
+                                    await context.read<CategoryCubit>().addCategory(newCategoryCtrl.text.trim());
+                                    setState(() {
+                                      selectedCategory = newCategoryCtrl.text.trim();
+                                      isAddingNewCategory = false;
+                                      newCategoryCtrl.clear();
+                                    });
+                                    if (mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(
+                                          content: Text('"${selectedCategory}" kategorisi eklendi!'),
+                                          backgroundColor: const Color(0xFF4ECDC4),
+                                          behavior: SnackBarBehavior.floating,
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(12),
+                                          ),
+                                        ),
+                                      );
+                                    }
+                                  }
+                                },
+                                icon: const Icon(
+                                  Icons.check,
+                                  color: Color(0xFF4ECDC4),
+                                  size: 20,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        onSubmitted: (value) async {
+                          if (value.trim().isNotEmpty) {
+                            await context.read<CategoryCubit>().addCategory(value.trim());
+                            setState(() {
+                              selectedCategory = value.trim();
+                              isAddingNewCategory = false;
+                              newCategoryCtrl.clear();
+                            });
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('"$value" kategorisi eklendi!'),
+                                  backgroundColor: const Color(0xFF4ECDC4),
+                                  behavior: SnackBarBehavior.floating,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                              );
+                            }
+                          }
+                        },
+                      ),
+                    ],
+                  ],
+                ),
+              );
+            },
           ),
         ),
       ],
@@ -522,7 +798,7 @@ class _AddTaskPageState extends State<AddTaskPage> with TickerProviderStateMixin
                       Text(
                         selectedDateTime == null
                             ? 'Tarih ve saat seçin'
-                            : DateFormat('dd MMMM yyyy, EEEE', 'tr_TR').format(selectedDateTime!),
+                            : SafeDateFormat.formatTurkishDate(selectedDateTime!),
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w500,
@@ -534,7 +810,7 @@ class _AddTaskPageState extends State<AddTaskPage> with TickerProviderStateMixin
                       if (selectedDateTime != null) ...[
                         const SizedBox(height: 2),
                         Text(
-                          DateFormat('HH:mm').format(selectedDateTime!),
+                          SafeDateFormat.formatTime(selectedDateTime!),
                           style: const TextStyle(
                             fontSize: 14,
                             color: Color(0xFF6B4EFF),
@@ -568,12 +844,17 @@ class _AddTaskPageState extends State<AddTaskPage> with TickerProviderStateMixin
       return;
     }
 
+    // Use the newly created category if we're adding one
+    String categoryToSave = isAddingNewCategory && newCategoryCtrl.text.trim().isNotEmpty 
+        ? newCategoryCtrl.text.trim() 
+        : selectedCategory;
+
     try {
       await context.read<AddTaskCubit>().addTask(
             titleCtrl.text.trim(),
             descCtrl.text.trim(),
             selectedDateTime!,
-            selectedCategory,
+            categoryToSave,
           );
 
       if (mounted) {

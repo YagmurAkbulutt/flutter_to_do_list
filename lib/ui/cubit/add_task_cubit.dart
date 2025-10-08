@@ -22,8 +22,18 @@ class AddTaskCubit extends Cubit<void> {
       dueDate: dueDate,
       category: category,
     );
-    await repo.addTask(task);
-    await NotificationService.scheduleNotification(title, dueDate);
+    
+    // Add task to repository and get the document ID
+    final taskId = await repo.addTask(task);
+    
+    // Schedule notifications for the task if it has a due date
+    if (taskId != null && task.dueDate != null) {
+      await NotificationService.scheduleTaskNotifications(
+        taskId, 
+        task.title, 
+        task.dueDate!,
+      );
+    }
   }
 
 }

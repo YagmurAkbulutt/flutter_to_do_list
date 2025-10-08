@@ -4,17 +4,24 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:to_do_list/ui/cubit/add_task_cubit.dart';
 import 'package:to_do_list/ui/cubit/detail_cubit.dart';
 import 'package:to_do_list/ui/cubit/home_cubit.dart';
+import 'package:to_do_list/ui/cubit/category_cubit.dart';
 import 'package:to_do_list/ui/views/home_page.dart';
 import 'package:to_do_list/utils/notification_service.dart';
+import 'package:to_do_list/utils/safe_date_format.dart';
 import 'package:flutter/services.dart';
+import 'package:to_do_list/firebase_options.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp();
-
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+  
+  // Initialize safe date formatting
+  await SafeDateFormat.initialize();
+  
+  // Initialize notification service
   await NotificationService.init();
-  final now = DateTime.now().add(const Duration(minutes: 1));
-  await NotificationService.scheduleNotification("Test Görevi", now);
 
   runApp(const MyApp());
 }
@@ -29,6 +36,7 @@ class MyApp extends StatelessWidget {
         BlocProvider(create: (context) => HomeCubit()),
         BlocProvider(create: (context) => DetailCubit()),
         BlocProvider(create: (context) => AddTaskCubit()),
+        BlocProvider(create: (context) => CategoryCubit()),
       ],
       child: MaterialApp(
         title: 'Flutter Demo',
