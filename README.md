@@ -30,4 +30,4 @@ Users can **create, read, update, and delete (CRUD)** tasks, categorize them, ma
 ---
 
 ## 📸 ScreenCast
-<img src = "screencast.gif" width="300" height = "550">
+<img src = "screencast.gif" width="350" height = "600">
