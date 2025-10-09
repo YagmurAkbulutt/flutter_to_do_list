@@ -1,16 +1,33 @@
-# to_do_list
+# 📝 Flutter To-Do List App
 
-A new Flutter project.
+A modern and minimal **Task Management App** built with **Flutter** and **Firebase Firestore**.  
+Users can **create, read, update, and delete (CRUD)** tasks, categorize them, mark as completed, and receive local reminder notifications 30 minutes, 1 hour, or 1 day before deadlines.
 
-## Getting Started
+---
 
-This project is a starting point for a Flutter application.
+## 🚀 Features
 
-A few resources to get you started if this is your first Flutter project:
+- ✅ Full CRUD functionality (Create, Read, Update, Delete)
+- 📂 Categorize tasks by type (Work, Personal, Study, etc.)
+- ⏰ Smart scheduled reminders (30 min / 1 hr / 1 day before)
+- 🕓 Mark tasks as completed
+- 🔥 Firebase Firestore for real-time data storage
+- 📱 Local notifications via `flutter_local_notifications`
+- 🎨 Clean and modern Material 3 UI
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+---
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## 🛠️ Tech Stack
+
+| Technology | Description |
+|-------------|-------------|
+| **Flutter** | Cross-platform UI toolkit |
+| **Firebase Firestore** | Real-time database |
+| **flutter_local_notifications** | Local scheduled notifications |
+| **Provider / Riverpod / Bloc** | State management |
+| **intl** | Date & time formatting |
+
+---
+
+## 📸 ScreenCast
+<img src = "screencast.gif">
